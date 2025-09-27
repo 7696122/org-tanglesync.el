@@ -474,7 +474,7 @@ the source org file they are originally tangled to."
                    org-tanglesync-confmap)))
       (when (and cfile (stringp cfile))
         (org-tanglesync-watch-perform-sync
-         tfile cfile (current-buffer))))))
+         tfile cfile (current-buffer)))))))
 
 (provide 'org-tanglesync)
 ;;; org-tanglesync.el ends here
