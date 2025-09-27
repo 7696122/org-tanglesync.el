@@ -184,25 +184,26 @@ Only takes effect when :custom is set"
   (let ((cut-beg nil) (cut-end nil)
         (currentbuffer (current-buffer)))
     (with-current-buffer org-buffer
-      (when pos
-        (goto-char pos))
-      ;;(goto-char org-src--beg-marker) only works from within edit-buffer
-      (org-babel-goto-src-block-head)
-      (search-forward "\n")
-      (setq cut-beg (point))
-      (search-forward "#+END_SRC")
-      (goto-char (- (line-beginning-position) 1))
-      (setq cut-end (point))
-      ;; cut out the old text
-      (delete-region cut-beg cut-end)
-      ;; insert the new text
-      (goto-char cut-beg)
-      (insert-buffer-substring external)
-      ;; Perform the auto indent without prompt
-      ;; -- this function steals buffer
-      (org-tanglesync-auto-format-block)
-      (switch-to-buffer currentbuffer))
-  (message "Block updated from external")))
+      (save-excursion
+        (when pos
+          (goto-char pos))
+        (org-babel-goto-src-block-head)
+        (search-forward "\n")
+        (setq cut-beg (point))
+        (search-forward "#+END_SRC")
+        (goto-char (line-beginning-position))
+        (setq cut-end (point))
+        ;; 안전한 범위 확인
+        (when (and cut-beg cut-end (< cut-beg cut-end))
+          ;; 기존 내용 삭제
+          (delete-region cut-beg cut-end)
+          ;; 새 내용 삽입
+          (goto-char cut-beg)
+          (insert-buffer-substring external)
+          ;; 자동 포맷팅
+          (org-tanglesync-auto-format-block))))
+    (switch-to-buffer currentbuffer)
+    (message "Block updated from external"))
 
 
 (defcustom org-tanglesync-highlight-color '(:background "lightblue")
