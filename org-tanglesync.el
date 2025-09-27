@@ -227,25 +227,22 @@ Only takes effect when :custom is set"
 (defun org-tanglesync-resolve-action (dont-ask-user block-action)
   "Resolves the action to operate on a block, taking into preferences given by the BLOCK-ACTION header and the DONT-ASK-USER parameter, returning an action."
   (let ((do-action org-tanglesync-default-diff-action))
-    (cl-flet ((method-do (a b c) (ignore a b c)))
-      ;; default action is overridden by block action
-      (when block-action
-        (setq do-action block-action))
-      (cond
-       (dont-ask-user (fset 'method-do 'org-tanglesync-perform-overwrite))
-       ((eq do-action :external) (fset 'method-do 'org-tanglesync-perform-overwrite))
-       ((eq do-action :internal) (fset 'method-do 'org-tanglesync-perform-nothing))
-       ((eq do-action :custom) (fset 'method-do 'org-tanglesync-perform-custom))
-       ((eq do-action :diff) (fset 'method-do 'org-tanglesync-perform-diff))
-       ((eq do-action :prompt) (fset 'method-do 'org-tanglesync-perform-userask-overwrite)))
-      'method-do)))
+    ;; default action is overridden by block action
+    (when block-action
+      (setq do-action block-action))
+    (cond
+     (dont-ask-user #'org-tanglesync-perform-overwrite)
+     ((eq do-action :external) #'org-tanglesync-perform-overwrite)
+     ((eq do-action :internal) #'org-tanglesync-perform-nothing)
+     ((eq do-action :custom) #'org-tanglesync-perform-custom)
+     ((eq do-action :diff) #'org-tanglesync-perform-diff)
+     ((eq do-action :prompt) #'org-tanglesync-perform-userask-overwrite))))
 
 (defun org-tanglesync-perform-action (internal external org-buffer method-do)
   "Perform the previously resolved action METHOD-DO on the INTERNAL and EXTERNAL change of the org src block within the ORG-BUFFER."
   (funcall method-do internal external org-buffer)
   (kill-buffer internal)
-  (kill-buffer external)
-  (ignore method-do))
+  (kill-buffer external))
 
 (defun org-tanglesync-process-current-block (dont-ask-user)
   "Process the org src block under cursor, and notify user on each change unless DONT-ASK-USER is set.  A marker to the block is returned if modified, otherwise nil."
@@ -358,8 +355,11 @@ to the original conf file."
   " o-ts-watch"
   nil
   (if org-tanglesync-watch-mode
-      (progn (message "Watching buffers")
-             (add-hook 'after-save-hook #'org-tanglesync-watch-save nil t))
+      (progn 
+        (setq org-tanglesync-confmap 
+              (org-tanglesync-watch-make-watchlist org-tanglesync-watch-files))
+        (message "Watching buffers")
+        (add-hook 'after-save-hook #'org-tanglesync-watch-save nil t))
     (remove-hook 'after-save-hook #'org-tanglesync-watch-save t)))
 
 (defcustom org-tanglesync-watch-files nil
@@ -399,13 +399,12 @@ the org file on save."
 
 (defun org-tanglesync-watch-make-watchlist (watchlist)
   "Generate an association list of conf files given by the WATCHLIST to their tangled files."
-  (let ((tangle-map nil))
-    (dolist (element watchlist tangle-map)
-      (push `(,element ,(org-tanglesync-watch-get-tanglesync-fnames element)) tangle-map))
-    tangle-map))
+  (when (listp watchlist)
+    (let ((tangle-map nil))
+      (dolist (element watchlist tangle-map)
+        (push `(,element ,(org-tanglesync-watch-get-tanglesync-fnames element)) tangle-map)))))
 
-(defvar org-tanglesync-confmap
-  (org-tanglesync-watch-make-watchlist org-tanglesync-watch-files)
+(defvar org-tanglesync-confmap nil
   "An alist that points a config file to all containing tangled filenames.
 Uses `org-tanglesync-watch-files` to generate.")
 
