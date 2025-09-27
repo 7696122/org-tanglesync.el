@@ -84,9 +84,8 @@ Only takes effect when :custom is set"
 
 (define-minor-mode org-tanglesync-mode
   "Mode for syncing tangled org babel headers to their external files."
-  nil
-  " tanglesync"
-  org-tanglesync-minor-mode-map
+  :lighter " tanglesync"
+  :keymap org-tanglesync-minor-mode-map
   (if org-tanglesync-mode
       (progn
         (add-hook 'org-src-mode-hook #'org-tanglesync-user-edit-buffer)
@@ -351,9 +350,7 @@ Only takes effect when :custom is set"
 (define-minor-mode org-tanglesync-watch-mode
   "Allow org-tanglesync to watch other buffers and check to see if they need syncing back
 to the original conf file."
-  nil
-  " o-ts-watch"
-  nil
+  :lighter " o-ts-watch"
   (if org-tanglesync-watch-mode
       (progn 
         (setq org-tanglesync-confmap 
@@ -452,9 +449,10 @@ Uses `org-tanglesync-watch-files` to generate.")
 
 (defun org-tanglesync-watch-sync-tfile-to-conf (tfile confmap)
   "Sync the TFILE tangle file back to the CONFMAP config file."
-  (let ((cfile (org-tanglesync-get-conf-source tfile confmap)))
+  (let ((cfile (org-tanglesync-watch-get-conf-source tfile confmap)))
     (if cfile ;; Perform sync
-        (org-tanglesync-watch-perform-sync tfile cfile)
+        (let ((content-buffer (org-tanglesync-get-filedata-buffer tfile)))
+          (org-tanglesync-watch-perform-sync tfile cfile content-buffer))
       (message "Could not find config file for %s." tfile))))
 
 (defun org-tanglesync-watch-perform-sync (tfile cfile content-buffer)
@@ -468,12 +466,12 @@ Uses `org-tanglesync-watch-files` to generate.")
   "A hook to update current buffer contents in the source org file.
 Takes the current contents of the saved file and sync them back to
 the source org file they are originally tangled to."
-  (when org-tanglesync-watch-files
+  (when (and org-tanglesync-watch-files org-tanglesync-confmap)
     (let* ((tfile buffer-file-name)
            (cfile (org-tanglesync-watch-get-conf-source
                    tfile
                    org-tanglesync-confmap)))
-      (when cfile
+      (when (and cfile (stringp cfile))
         (org-tanglesync-watch-perform-sync
          tfile cfile (current-buffer))))))
 
